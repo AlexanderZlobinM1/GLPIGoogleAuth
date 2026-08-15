@@ -15,4 +15,3 @@ Operational recommendations:
 - retain at least one tested local Super-Admin account for recovery;
 - rate-limit the callback path at the reverse proxy;
 - review GLPI login events and web-server logs.
-

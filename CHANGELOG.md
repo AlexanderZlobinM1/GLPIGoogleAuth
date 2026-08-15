@@ -8,4 +8,3 @@
 - Exact Google Workspace domain enforcement.
 - Automatic GLPI user creation and managed administrator/viewer authorization rules.
 - Local GLPI login remains available.
-

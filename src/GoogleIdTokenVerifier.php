@@ -341,4 +341,3 @@ final class GoogleIdTokenVerifier
         return $decoded;
     }
 }
-

@@ -76,4 +76,3 @@ Copyright 2026 Sales Snap. The Google ID-token verification flow is adapted from
 ## License
 
 GPL-3.0-or-later.
-

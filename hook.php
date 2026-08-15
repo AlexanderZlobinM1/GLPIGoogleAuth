@@ -249,4 +249,3 @@ function plugin_googleauth_add_rule_actions(int $ruleId, int $profileId): void
         }
     }
 }
-

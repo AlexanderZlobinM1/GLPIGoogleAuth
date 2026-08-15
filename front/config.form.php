@@ -88,4 +88,3 @@ echo '<button class="btn btn-primary" type="submit" name="update" value="1">Со
 echo '</form></div></div></div>';
 
 Html::footer();
-

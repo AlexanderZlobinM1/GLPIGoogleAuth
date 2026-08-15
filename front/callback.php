@@ -70,6 +70,12 @@ $_SERVER['HTTP_X_GOOGLE_FAMILY_NAME'] = trim((string) ($claims['family_name'] ??
 
 $auth = new Auth();
 if ($auth->login('', '', false, false)) {
+    // GLPI's native header-SSO flow expects REMOTE_USER to be supplied by the
+    // web server on every request and expires the session if it disappears.
+    // Here the verified Google identity is intentionally request-scoped, like
+    // a regular OAuth callback, so subsequent requests rely on GLPI's secure
+    // session cookie instead of a persistent spoofable header.
+    unset($_SESSION['glpi_remote_user']);
     Auth::redirectIfAuthenticated();
 }
 

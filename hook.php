@@ -41,6 +41,218 @@ function plugin_googleauth_is_configured(array $config): bool
         && (int) ($config['viewer_profile_id'] ?? 0) > 0;
 }
 
+function plugin_googleauth_resolve_login_locale(?string $acceptLanguage = null): string
+{
+    $acceptLanguage ??= (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '');
+    $preferences = [];
+
+    foreach (explode(',', $acceptLanguage) as $position => $item) {
+        $parts = array_map('trim', explode(';', $item));
+        $tag = strtolower(str_replace('_', '-', $parts[0] ?? ''));
+        $quality = 1.0;
+
+        foreach (array_slice($parts, 1) as $parameter) {
+            if (preg_match('/^q\s*=\s*(0(?:\.\d+)?|1(?:\.0+)?)$/i', $parameter, $matches) === 1) {
+                $quality = (float) $matches[1];
+                break;
+            }
+        }
+
+        if ($tag !== '' && $tag !== '*' && $quality > 0) {
+            $preferences[] = [
+                'tag'      => $tag,
+                'quality'  => $quality,
+                'position' => $position,
+            ];
+        }
+    }
+
+    usort($preferences, static function (array $left, array $right): int {
+        return $right['quality'] <=> $left['quality']
+            ?: $left['position'] <=> $right['position'];
+    });
+
+    foreach ($preferences as $preference) {
+        $language = explode('-', (string) $preference['tag'])[0];
+        if ($language === 'sr') {
+            return 'sr-Latn';
+        }
+        if (in_array($language, ['en', 'de', 'es', 'fr'], true)) {
+            return $language;
+        }
+    }
+
+    return 'en';
+}
+
+/**
+ * @return array<string, string>
+ */
+function plugin_googleauth_get_login_messages(string $locale): array
+{
+    $messages = [
+        'en' => [
+            'brand'                 => 'NEWLOOK SERVICE DESK',
+            'title'                 => 'Employee sign-in',
+            'hint'                  => 'Google Workspace accounts from @%s only',
+            'loading'               => 'Loading Google…',
+            'login_failed'          => 'Google sign-in failed. Check your account and try again.',
+            'unavailable'           => 'Google sign-in is temporarily unavailable.',
+            'missing_credential'    => 'Google did not return sign-in data. Please try again.',
+            'initialization_failed' => 'Could not initialize Google sign-in.',
+            'load_failed'           => 'Could not load Google sign-in.',
+        ],
+        'de' => [
+            'brand'                 => 'NEWLOOK SERVICE DESK',
+            'title'                 => 'Anmeldung für Mitarbeitende',
+            'hint'                  => 'Nur Google-Workspace-Konten der Domain @%s',
+            'loading'               => 'Google wird geladen…',
+            'login_failed'          => 'Google-Anmeldung fehlgeschlagen. Prüfen Sie Ihr Konto und versuchen Sie es erneut.',
+            'unavailable'           => 'Die Google-Anmeldung ist vorübergehend nicht verfügbar.',
+            'missing_credential'    => 'Google hat keine Anmeldedaten zurückgegeben. Versuchen Sie es erneut.',
+            'initialization_failed' => 'Die Google-Anmeldung konnte nicht initialisiert werden.',
+            'load_failed'           => 'Die Google-Anmeldung konnte nicht geladen werden.',
+        ],
+        'es' => [
+            'brand'                 => 'NEWLOOK SERVICE DESK',
+            'title'                 => 'Acceso para empleados',
+            'hint'                  => 'Solo cuentas de Google Workspace del dominio @%s',
+            'loading'               => 'Cargando Google…',
+            'login_failed'          => 'No se pudo iniciar sesión con Google. Comprueba tu cuenta e inténtalo de nuevo.',
+            'unavailable'           => 'El inicio de sesión con Google no está disponible temporalmente.',
+            'missing_credential'    => 'Google no devolvió los datos de acceso. Inténtalo de nuevo.',
+            'initialization_failed' => 'No se pudo inicializar el inicio de sesión con Google.',
+            'load_failed'           => 'No se pudo cargar el inicio de sesión con Google.',
+        ],
+        'fr' => [
+            'brand'                 => 'NEWLOOK SERVICE DESK',
+            'title'                 => 'Connexion des employés',
+            'hint'                  => 'Comptes Google Workspace du domaine @%s uniquement',
+            'loading'               => 'Chargement de Google…',
+            'login_failed'          => 'Échec de la connexion Google. Vérifiez votre compte et réessayez.',
+            'unavailable'           => 'La connexion Google est temporairement indisponible.',
+            'missing_credential'    => 'Google n’a renvoyé aucune donnée de connexion. Réessayez.',
+            'initialization_failed' => 'Impossible d’initialiser la connexion Google.',
+            'load_failed'           => 'Impossible de charger la connexion Google.',
+        ],
+        'sr-Latn' => [
+            'brand'                 => 'NEWLOOK SERVICE DESK',
+            'title'                 => 'Prijava za zaposlene',
+            'hint'                  => 'Samo Google Workspace nalozi sa domena @%s',
+            'loading'               => 'Google se učitava…',
+            'login_failed'          => 'Prijava preko Google naloga nije uspela. Proverite nalog i pokušajte ponovo.',
+            'unavailable'           => 'Prijava preko Google naloga trenutno nije dostupna.',
+            'missing_credential'    => 'Google nije vratio podatke za prijavu. Pokušajte ponovo.',
+            'initialization_failed' => 'Nije moguće pokrenuti prijavu preko Google naloga.',
+            'load_failed'           => 'Nije moguće učitati prijavu preko Google naloga.',
+        ],
+    ];
+
+    return $messages[$locale] ?? $messages['en'];
+}
+
+function plugin_googleauth_get_glpi_locale(string $locale): string
+{
+    return [
+        'en'      => 'en_GB',
+        'de'      => 'de_DE',
+        'es'      => 'es_ES',
+        'fr'      => 'fr_FR',
+        'sr-Latn' => 'sr_RS',
+    ][$locale] ?? 'en_GB';
+}
+
+/**
+ * @return array<string, string>
+ */
+function plugin_googleauth_get_config_messages(string $locale): array
+{
+    $messages = [
+        'en' => [
+            'invalid_client'        => 'Enter a valid Google Web Client ID.',
+            'invalid_domain'        => 'Enter a valid Google Workspace domain.',
+            'invalid_admin'         => 'The administrator email must belong to the configured domain.',
+            'invalid_profiles'      => 'Select the administrator and user profiles.',
+            'saved'                 => 'Google Auth has been configured.',
+            'description'           => 'Google Identity Services sign-in with server-side ID-token signature verification. Local GLPI sign-in remains available.',
+            'origin'                => 'Authorized JavaScript origin',
+            'redirect_not_required' => 'A redirect URI is not required for this flow.',
+            'client_id'             => 'Google Web Client ID',
+            'domain'                => 'Google Workspace domain',
+            'admin_email'           => 'Administrator email',
+            'admin_profile'         => 'Administrator profile',
+            'viewer_profile'        => 'Default domain-user profile',
+            'save'                  => 'Save and apply rules',
+        ],
+        'de' => [
+            'invalid_client'        => 'Geben Sie eine gültige Google Web Client-ID ein.',
+            'invalid_domain'        => 'Geben Sie eine gültige Google-Workspace-Domain ein.',
+            'invalid_admin'         => 'Die Administrator-E-Mail muss zur konfigurierten Domain gehören.',
+            'invalid_profiles'      => 'Wählen Sie die Profile für Administratoren und Benutzer aus.',
+            'saved'                 => 'Google Auth wurde konfiguriert.',
+            'description'           => 'Anmeldung über Google Identity Services mit serverseitiger Signaturprüfung des ID-Tokens. Die lokale GLPI-Anmeldung bleibt verfügbar.',
+            'origin'                => 'Autorisierter JavaScript-Ursprung',
+            'redirect_not_required' => 'Für diesen Ablauf ist keine Weiterleitungs-URI erforderlich.',
+            'client_id'             => 'Google Web Client-ID',
+            'domain'                => 'Google-Workspace-Domain',
+            'admin_email'           => 'Administrator-E-Mail',
+            'admin_profile'         => 'Administratorprofil',
+            'viewer_profile'        => 'Standardprofil für Domain-Benutzer',
+            'save'                  => 'Speichern und Regeln anwenden',
+        ],
+        'es' => [
+            'invalid_client'        => 'Introduce un ID de cliente web de Google válido.',
+            'invalid_domain'        => 'Introduce un dominio de Google Workspace válido.',
+            'invalid_admin'         => 'El correo del administrador debe pertenecer al dominio configurado.',
+            'invalid_profiles'      => 'Selecciona los perfiles de administrador y de usuario.',
+            'saved'                 => 'Google Auth se ha configurado.',
+            'description'           => 'Inicio de sesión con Google Identity Services y verificación de la firma del token de ID en el servidor. El acceso local de GLPI sigue disponible.',
+            'origin'                => 'Origen de JavaScript autorizado',
+            'redirect_not_required' => 'Este flujo no requiere un URI de redirección.',
+            'client_id'             => 'ID de cliente web de Google',
+            'domain'                => 'Dominio de Google Workspace',
+            'admin_email'           => 'Correo del administrador',
+            'admin_profile'         => 'Perfil de administrador',
+            'viewer_profile'        => 'Perfil predeterminado de usuarios del dominio',
+            'save'                  => 'Guardar y aplicar las reglas',
+        ],
+        'fr' => [
+            'invalid_client'        => 'Saisissez un ID client Web Google valide.',
+            'invalid_domain'        => 'Saisissez un domaine Google Workspace valide.',
+            'invalid_admin'         => 'L’adresse e-mail de l’administrateur doit appartenir au domaine configuré.',
+            'invalid_profiles'      => 'Sélectionnez les profils administrateur et utilisateur.',
+            'saved'                 => 'Google Auth a été configuré.',
+            'description'           => 'Connexion Google Identity Services avec vérification côté serveur de la signature du jeton d’identité. La connexion locale GLPI reste disponible.',
+            'origin'                => 'Origine JavaScript autorisée',
+            'redirect_not_required' => 'Aucun URI de redirection n’est nécessaire pour ce flux.',
+            'client_id'             => 'ID client Web Google',
+            'domain'                => 'Domaine Google Workspace',
+            'admin_email'           => 'E-mail de l’administrateur',
+            'admin_profile'         => 'Profil administrateur',
+            'viewer_profile'        => 'Profil par défaut des utilisateurs du domaine',
+            'save'                  => 'Enregistrer et appliquer les règles',
+        ],
+        'sr-Latn' => [
+            'invalid_client'        => 'Unesite važeći Google Web Client ID.',
+            'invalid_domain'        => 'Unesite važeći Google Workspace domen.',
+            'invalid_admin'         => 'E-adresa administratora mora pripadati podešenom domenu.',
+            'invalid_profiles'      => 'Izaberite profile administratora i korisnika.',
+            'saved'                 => 'Google Auth je podešen.',
+            'description'           => 'Prijava preko Google Identity Services uz serversku proveru potpisa ID tokena. Lokalna GLPI prijava ostaje dostupna.',
+            'origin'                => 'Ovlašćeno JavaScript poreklo',
+            'redirect_not_required' => 'Redirect URI nije potreban za ovaj način prijave.',
+            'client_id'             => 'Google Web Client ID',
+            'domain'                => 'Google Workspace domen',
+            'admin_email'           => 'E-adresa administratora',
+            'admin_profile'         => 'Profil administratora',
+            'viewer_profile'        => 'Podrazumevani profil korisnika domena',
+            'save'                  => 'Sačuvaj i primeni pravila',
+        ],
+    ];
+
+    return $messages[$locale] ?? $messages['en'];
+}
+
 function plugin_googleauth_display_login(): void
 {
     global $CFG_GLPI;
@@ -58,17 +270,33 @@ function plugin_googleauth_display_login(): void
 
     $root = rtrim((string) ($CFG_GLPI['root_doc'] ?? ''), '/');
     $callback = $root . '/plugins/googleauth/front/callback.php';
-    $error = isset($_GET['googleauth_error']) ? 'Вход через Google не выполнен. Проверьте аккаунт и повторите.' : '';
+    $locale = plugin_googleauth_resolve_login_locale();
+    $messages = plugin_googleauth_get_login_messages($locale);
+    $error = isset($_GET['googleauth_error']) ? $messages['login_failed'] : '';
+    $glpiLocale = plugin_googleauth_get_glpi_locale($locale);
+    $languageReload = (string) ($_SESSION['glpilanguage'] ?? '') !== $glpiLocale;
+
+    if ($languageReload && isset($CFG_GLPI['languages'][$glpiLocale])) {
+        $_SESSION['glpilanguage'] = $glpiLocale;
+        $_SESSION['glpi_dropdowntranslations'] = DropdownTranslation::getAvailableTranslations($glpiLocale);
+    }
 
     $attributes = [
         'id'          => 'googleauth-login',
         'class'       => 'googleauth-login',
+        'lang'           => $locale,
         'data-client-id' => (string) $config['client_id'],
         'data-domain'    => (string) $config['hosted_domain'],
         'data-nonce'     => $nonce,
         'data-callback'  => $callback,
         'data-csrf'      => Session::getNewCSRFToken(),
         'data-error'     => $error,
+        'data-language-reload' => $languageReload ? '1' : '0',
+        'data-google-locale'    => str_replace('-', '_', $locale),
+        'data-msg-unavailable'  => $messages['unavailable'],
+        'data-msg-missing'      => $messages['missing_credential'],
+        'data-msg-initialize'   => $messages['initialization_failed'],
+        'data-msg-load'         => $messages['load_failed'],
     ];
 
     $htmlAttributes = '';
@@ -81,12 +309,22 @@ function plugin_googleauth_display_login(): void
     }
 
     echo '<section' . $htmlAttributes . '>';
-    echo '<div class="googleauth-login__brand">NewLook Service Desk</div>';
-    echo '<p class="googleauth-login__title">Вход для сотрудников</p>';
-    echo '<p class="googleauth-login__hint">Только аккаунты Google Workspace @'
-        . htmlspecialchars((string) $config['hosted_domain'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+    echo '<div class="googleauth-login__brand">'
+        . htmlspecialchars($messages['brand'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+        . '</div>';
+    echo '<p class="googleauth-login__title">'
+        . htmlspecialchars($messages['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
         . '</p>';
-    echo '<div class="googleauth-login__button" data-googleauth-button>Загрузка Google…</div>';
+    echo '<p class="googleauth-login__hint">'
+        . htmlspecialchars(
+            sprintf($messages['hint'], (string) $config['hosted_domain']),
+            ENT_QUOTES | ENT_SUBSTITUTE,
+            'UTF-8'
+        )
+        . '</p>';
+    echo '<div class="googleauth-login__button" data-googleauth-button>'
+        . htmlspecialchars($messages['loading'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+        . '</div>';
     echo '<div class="googleauth-login__error" data-googleauth-error aria-live="polite">'
         . htmlspecialchars($error, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
         . '</div>';
@@ -145,6 +383,7 @@ function plugin_googleauth_uninstall(): bool
 function plugin_googleauth_core_settings(): array
 {
     return [
+        'language'                                => 'en_GB',
         'ssovariables_id'                         => 2,
         'existing_auth_server_field_clean_domain'=> 0,
         'email1_ssofield'                         => 'HTTP_X_GOOGLE_EMAIL',

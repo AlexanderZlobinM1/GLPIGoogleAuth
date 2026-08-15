@@ -76,6 +76,16 @@ if ($auth->login('', '', false, false)) {
     // a regular OAuth callback, so subsequent requests rely on GLPI's secure
     // session cookie instead of a persistent spoofable header.
     unset($_SESSION['glpi_remote_user']);
+
+    // Apply the supported browser language to the authenticated GLPI session.
+    // This remains session-scoped so GLPI's language selector still works.
+    $loginLocale = plugin_googleauth_resolve_login_locale();
+    $glpiLocale = plugin_googleauth_get_glpi_locale($loginLocale);
+    if (isset($CFG_GLPI['languages'][$glpiLocale])) {
+        $_SESSION['glpilanguage'] = $glpiLocale;
+        $_SESSION['glpi_dropdowntranslations'] = DropdownTranslation::getAvailableTranslations($glpiLocale);
+    }
+
     Auth::redirectIfAuthenticated();
 }
 

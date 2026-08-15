@@ -4,6 +4,8 @@ Google Workspace sign-in for GLPI 11, based on the server-side token verificatio
 
 The plugin keeps GLPI's local username/password login available. New Google Workspace users can be created automatically on first sign-in and assigned a restricted profile, while one configured account receives the administrator profile.
 
+The branded login panel and the authenticated GLPI session follow the browser's `Accept-Language` preference for English, German, Spanish, French, and Serbian (Latin). English is used for every other language.
+
 ## Security model
 
 - Uses Google Identity Services and a Web Client ID; no client secret is stored in GLPI.

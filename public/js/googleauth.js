@@ -7,19 +7,30 @@
             return;
         }
 
+        if (root.dataset.languageReload === '1') {
+            window.location.reload();
+            return;
+        }
+
         root.dataset.initialized = '1';
         const button = root.querySelector('[data-googleauth-button]');
         const error = root.querySelector('[data-googleauth-error]');
+        const messages = {
+            unavailable: root.dataset.msgUnavailable,
+            missing: root.dataset.msgMissing,
+            initialize: root.dataset.msgInitialize,
+            load: root.dataset.msgLoad,
+        };
 
         function showError(message) {
             if (error) {
-                error.textContent = message || 'Вход через Google временно недоступен.';
+                error.textContent = message || messages.unavailable;
             }
         }
 
         function submitCredential(response) {
             if (!response || !response.credential) {
-                showError('Google не вернул данные входа. Повторите попытку.');
+                showError(messages.missing);
                 return;
             }
 
@@ -65,10 +76,11 @@
                     shape: 'rectangular',
                     text: 'signin_with',
                     width: 300,
+                    locale: root.dataset.googleLocale,
                 });
                 return true;
             } catch (exception) {
-                showError('Вход через Google временно недоступен.');
+                showError(messages.unavailable);
                 return true;
             }
         }
@@ -77,7 +89,8 @@
             return;
         }
 
-        const source = 'https://accounts.google.com/gsi/client';
+        const source = 'https://accounts.google.com/gsi/client?hl='
+            + encodeURIComponent(root.dataset.googleLocale);
         let script = document.querySelector('script[data-googleauth-gsi]');
         if (!script) {
             script = document.createElement('script');
@@ -90,11 +103,11 @@
 
         script.addEventListener('load', function () {
             if (!initialize()) {
-                showError('Не удалось инициализировать вход через Google.');
+                showError(messages.initialize);
             }
         }, {once: true});
         script.addEventListener('error', function () {
-            showError('Не удалось загрузить вход через Google.');
+            showError(messages.load);
         }, {once: true});
     }
 

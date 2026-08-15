@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Browser-language detection for English, German, Spanish, French, and Serbian (Latin), including the authenticated GLPI interface.
+- English fallback for unsupported browser languages.
+- Persistent GLPI sessions after the request-scoped Google OAuth callback.
+
 ## 1.0.0
 
 - Initial GLPI 11 release.

@@ -37,6 +37,8 @@ sudo -u www-data php bin/console plugin:install googleauth
 sudo -u www-data php bin/console plugin:activate googleauth
 ```
 
+The JavaScript and CSS files live in the plugin's `public/` directory, as required by GLPI 11's secure request router. No web-server alias or symlink to the plugin source directory is required.
+
 Open **Setup → Plugins → Google Auth → Configure** and enter:
 
 - Google Web Client ID

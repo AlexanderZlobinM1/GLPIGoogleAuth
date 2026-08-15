@@ -1,0 +1,22 @@
+{
+    "name": "sales-snap/glpi-google-auth",
+    "description": "Google Workspace sign-in for GLPI 11 with automatic role assignment.",
+    "type": "glpi-plugin",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": ">=8.2",
+        "ext-json": "*",
+        "ext-openssl": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "GlpiPlugin\\Googleauth\\": "src/"
+        }
+    },
+    "extra": {
+        "glpi": {
+            "directory": "googleauth"
+        }
+    }
+}
+

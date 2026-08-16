@@ -14,7 +14,9 @@ Session::checkRight('config', UPDATE);
 
 global $CFG_GLPI;
 
-$ui = plugin_googleauth_get_config_messages(plugin_googleauth_resolve_login_locale());
+$ui = plugin_googleauth_get_config_messages(
+    plugin_googleauth_get_message_locale(plugin_googleauth_resolve_glpi_locale())
+);
 
 if (isset($_POST['update'])) {
     $clientId = trim((string) ($_POST['client_id'] ?? ''));

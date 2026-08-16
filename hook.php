@@ -41,48 +41,48 @@ function plugin_googleauth_is_configured(array $config): bool
         && (int) ($config['viewer_profile_id'] ?? 0) > 0;
 }
 
-function plugin_googleauth_resolve_login_locale(?string $acceptLanguage = null): string
+function plugin_googleauth_resolve_glpi_locale(?string $acceptLanguage = null): string
 {
-    $acceptLanguage ??= (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '');
-    $preferences = [];
+    global $CFG_GLPI;
 
-    foreach (explode(',', $acceptLanguage) as $position => $item) {
-        $parts = array_map('trim', explode(';', $item));
-        $tag = strtolower(str_replace('_', '-', $parts[0] ?? ''));
-        $quality = 1.0;
+    $hadHeader = array_key_exists('HTTP_ACCEPT_LANGUAGE', $_SERVER);
+    $previousHeader = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null;
+    if ($acceptLanguage !== null) {
+        $_SERVER['HTTP_ACCEPT_LANGUAGE'] = $acceptLanguage;
+    }
 
-        foreach (array_slice($parts, 1) as $parameter) {
-            if (preg_match('/^q\s*=\s*(0(?:\.\d+)?|1(?:\.0+)?)$/i', $parameter, $matches) === 1) {
-                $quality = (float) $matches[1];
-                break;
+    try {
+        $locale = Session::getPreferredLanguage();
+    } finally {
+        if ($acceptLanguage !== null) {
+            if ($hadHeader) {
+                $_SERVER['HTTP_ACCEPT_LANGUAGE'] = $previousHeader;
+            } else {
+                unset($_SERVER['HTTP_ACCEPT_LANGUAGE']);
             }
         }
-
-        if ($tag !== '' && $tag !== '*' && $quality > 0) {
-            $preferences[] = [
-                'tag'      => $tag,
-                'quality'  => $quality,
-                'position' => $position,
-            ];
-        }
     }
 
-    usort($preferences, static function (array $left, array $right): int {
-        return $right['quality'] <=> $left['quality']
-            ?: $left['position'] <=> $right['position'];
-    });
+    return isset($CFG_GLPI['languages'][$locale]) ? $locale : 'en_GB';
+}
 
-    foreach ($preferences as $preference) {
-        $language = explode('-', (string) $preference['tag'])[0];
-        if ($language === 'sr') {
-            return 'sr-Latn';
-        }
-        if (in_array($language, ['en', 'de', 'es', 'fr'], true)) {
-            return $language;
-        }
-    }
+function plugin_googleauth_get_message_locale(string $glpiLocale): string
+{
+    $language = strtolower((string) preg_split('/[_@-]/', $glpiLocale, 2)[0]);
 
-    return 'en';
+    return match ($language) {
+        'de', 'es', 'fr', 'ru' => $language,
+        'sr'                    => 'sr-Latn',
+        default                 => 'en',
+    };
+}
+
+function plugin_googleauth_get_browser_language_tag(string $glpiLocale): string
+{
+    global $CFG_GLPI;
+
+    $languageTag = (string) ($CFG_GLPI['languages'][$glpiLocale][2] ?? '');
+    return $languageTag !== '' ? str_replace('_', '-', $languageTag) : str_replace('_', '-', $glpiLocale);
 }
 
 /**
@@ -135,6 +135,17 @@ function plugin_googleauth_get_login_messages(string $locale): array
             'initialization_failed' => 'Impossible d’initialiser la connexion Google.',
             'load_failed'           => 'Impossible de charger la connexion Google.',
         ],
+        'ru' => [
+            'brand'                 => 'NEWLOOK SERVICE DESK',
+            'title'                 => 'Вход для сотрудников',
+            'hint'                  => 'Только аккаунты Google Workspace @%s',
+            'loading'               => 'Загрузка Google…',
+            'login_failed'          => 'Вход через Google не выполнен. Проверьте аккаунт и повторите.',
+            'unavailable'           => 'Вход через Google временно недоступен.',
+            'missing_credential'    => 'Google не вернул данные входа. Повторите попытку.',
+            'initialization_failed' => 'Не удалось инициализировать вход через Google.',
+            'load_failed'           => 'Не удалось загрузить вход через Google.',
+        ],
         'sr-Latn' => [
             'brand'                 => 'NEWLOOK SERVICE DESK',
             'title'                 => 'Prijava za zaposlene',
@@ -149,17 +160,6 @@ function plugin_googleauth_get_login_messages(string $locale): array
     ];
 
     return $messages[$locale] ?? $messages['en'];
-}
-
-function plugin_googleauth_get_glpi_locale(string $locale): string
-{
-    return [
-        'en'      => 'en_GB',
-        'de'      => 'de_DE',
-        'es'      => 'es_ES',
-        'fr'      => 'fr_FR',
-        'sr-Latn' => 'sr_RS',
-    ][$locale] ?? 'en_GB';
 }
 
 /**
@@ -232,6 +232,22 @@ function plugin_googleauth_get_config_messages(string $locale): array
             'viewer_profile'        => 'Profil par défaut des utilisateurs du domaine',
             'save'                  => 'Enregistrer et appliquer les règles',
         ],
+        'ru' => [
+            'invalid_client'        => 'Введите корректный Google Web Client ID.',
+            'invalid_domain'        => 'Введите корректный домен Google Workspace.',
+            'invalid_admin'         => 'Email администратора должен принадлежать указанному домену.',
+            'invalid_profiles'      => 'Выберите профили администратора и пользователей.',
+            'saved'                 => 'Google Auth настроен.',
+            'description'           => 'Вход через Google Identity Services с серверной проверкой подписи ID-токена. Локальный вход GLPI остаётся доступным.',
+            'origin'                => 'Разрешённый источник JavaScript',
+            'redirect_not_required' => 'Redirect URI для этого режима не требуется.',
+            'client_id'             => 'Google Web Client ID',
+            'domain'                => 'Домен Google Workspace',
+            'admin_email'           => 'Email администратора',
+            'admin_profile'         => 'Профиль администратора',
+            'viewer_profile'        => 'Профиль пользователей домена по умолчанию',
+            'save'                  => 'Сохранить и применить правила',
+        ],
         'sr-Latn' => [
             'invalid_client'        => 'Unesite važeći Google Web Client ID.',
             'invalid_domain'        => 'Unesite važeći Google Workspace domen.',
@@ -270,10 +286,11 @@ function plugin_googleauth_display_login(): void
 
     $root = rtrim((string) ($CFG_GLPI['root_doc'] ?? ''), '/');
     $callback = $root . '/plugins/googleauth/front/callback.php';
-    $locale = plugin_googleauth_resolve_login_locale();
-    $messages = plugin_googleauth_get_login_messages($locale);
+    $glpiLocale = plugin_googleauth_resolve_glpi_locale();
+    $messageLocale = plugin_googleauth_get_message_locale($glpiLocale);
+    $browserLanguage = plugin_googleauth_get_browser_language_tag($glpiLocale);
+    $messages = plugin_googleauth_get_login_messages($messageLocale);
     $error = isset($_GET['googleauth_error']) ? $messages['login_failed'] : '';
-    $glpiLocale = plugin_googleauth_get_glpi_locale($locale);
     $languageReload = (string) ($_SESSION['glpilanguage'] ?? '') !== $glpiLocale;
 
     if ($languageReload && isset($CFG_GLPI['languages'][$glpiLocale])) {
@@ -284,7 +301,7 @@ function plugin_googleauth_display_login(): void
     $attributes = [
         'id'          => 'googleauth-login',
         'class'       => 'googleauth-login',
-        'lang'           => $locale,
+        'lang'           => $browserLanguage,
         'data-client-id' => (string) $config['client_id'],
         'data-domain'    => (string) $config['hosted_domain'],
         'data-nonce'     => $nonce,
@@ -292,7 +309,7 @@ function plugin_googleauth_display_login(): void
         'data-csrf'      => Session::getNewCSRFToken(),
         'data-error'     => $error,
         'data-language-reload' => $languageReload ? '1' : '0',
-        'data-google-locale'    => str_replace('-', '_', $locale),
+        'data-google-locale'    => str_replace('-', '_', $browserLanguage),
         'data-msg-unavailable'  => $messages['unavailable'],
         'data-msg-missing'      => $messages['missing_credential'],
         'data-msg-initialize'   => $messages['initialization_failed'],

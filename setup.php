@@ -11,7 +11,7 @@ declare(strict_types=1);
 use Glpi\Http\Firewall;
 use Glpi\Plugin\Hooks;
 
-define('PLUGIN_GOOGLEAUTH_VERSION', '1.0.1');
+define('PLUGIN_GOOGLEAUTH_VERSION', '1.0.2');
 define('PLUGIN_GOOGLEAUTH_MIN_GLPI_VERSION', '11.0.0');
 define('PLUGIN_GOOGLEAUTH_MAX_GLPI_VERSION', '11.0.99');
 

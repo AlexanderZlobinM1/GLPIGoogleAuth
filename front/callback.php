@@ -79,8 +79,7 @@ if ($auth->login('', '', false, false)) {
 
     // Apply the supported browser language to the authenticated GLPI session.
     // This remains session-scoped so GLPI's language selector still works.
-    $loginLocale = plugin_googleauth_resolve_login_locale();
-    $glpiLocale = plugin_googleauth_get_glpi_locale($loginLocale);
+    $glpiLocale = plugin_googleauth_resolve_glpi_locale();
     if (isset($CFG_GLPI['languages'][$glpiLocale])) {
         $_SESSION['glpilanguage'] = $glpiLocale;
         $_SESSION['glpi_dropdowntranslations'] = DropdownTranslation::getAvailableTranslations($glpiLocale);
